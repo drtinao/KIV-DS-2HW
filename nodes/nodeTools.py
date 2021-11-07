@@ -115,38 +115,28 @@ def master_check_for_disc_nodes(hostname_contact_dict, print_info, node_color_di
     disc_nodes_hostnames = []  # contains hostnames of disconnected clients
 
     for key, value in hostname_contact_dict.items():
-        print("host is: ", key, flush=True)
         if key == net.get_node_hostname():  # node itself, nothing to check, still connected
             continue
 
         disc_for_time = time.time() - value
         disc_for_time_pretty = "{:.2f}".format(disc_for_time)
         if disc_for_time > SLAVE_DISCONNECTED_SEC:  # node is considered as disconnected
-            print("host ", key, " disconnected", flush=True)
             disc_nodes_hostnames.append(key)
             if print_info:
                 print("Node " + key + " is disconnected for ", disc_for_time_pretty, " seconds!", flush=True)
     if print_info:
-        return
+        return node_color_dict
 
     # update given dict, remove disconnected clients and recalc color ratio
     updated_retrieved_network_nodes = copy.deepcopy(retrieved_network_nodes)  # content of retrieved_network_nodes WO disconnected clients
     for netNode in updated_retrieved_network_nodes:
         if netNode.node_hostname in disc_nodes_hostnames:  # node is disconnected, remove
             updated_retrieved_network_nodes.remove(netNode)
-    if len(retrieved_network_nodes) == len(updated_retrieved_network_nodes):  # nothing to change length is the same -> color stay same
-        updated_node_color_dict = master_count_colors(updated_retrieved_network_nodes,
-                                                      False)  # recalc colors on new set of clients
-        print("Original node size is", len(retrieved_network_nodes), " modified is ",
-              len(updated_retrieved_network_nodes), flush=True)
-        #print(updated_node_color_dict, flush=True)
-        return updated_node_color_dict
+    if len(retrieved_network_nodes) == len(updated_retrieved_network_nodes):  # nothing to change, length is the same -> color stay same
+        return node_color_dict
     else:  # length changed -> some disconnected, recalc
         updated_node_color_dict = master_count_colors(updated_retrieved_network_nodes,
                                                       False)  # recalc colors on new set of clients
-        print("Original node size is", len(retrieved_network_nodes), " modified is ",
-              len(updated_retrieved_network_nodes), flush=True)
-        print(updated_node_color_dict, flush=True)
         return updated_node_color_dict
 
 
@@ -203,7 +193,6 @@ def master_node_accept_con(conn, addr, node_color_dict, dict_ip_hostname, dict_h
     len_to_receive = len(str(NODE_COLOR_GREEN).encode(FORMAT))  # received messages are always same length
     node_hostname = dict_ip_hostname[addr[0]]  # hostname of node which contacted master
     while True:  # receive messages from slaves
-        print("Contacted", flush=True)
         node_color_dict = master_check_for_disc_nodes(dict_hostname_contact, False, node_color_dict,
                                                       retrieved_network_nodes)  # check if any node disconnected, update dict
         color_which_should_be_as = node_color_dict[
@@ -291,11 +280,13 @@ def slave_send_color_mes(slave_socket):
         message = node_current_color.encode(FORMAT)  # send current color to server
         slave_socket.send(message)
         server_response = slave_socket.recv(len(NODE_COLOR_GREEN)).decode(FORMAT)
-        if server_response == node_current_color:
+        if server_response == node_current_color:  # color returned same color as already assigned, nothing to change
             print('Server responded: ', server_response, '. OK, color stays the same.', flush=True)
-        else:
+        elif server_response == NODE_COLOR_GREEN or server_response == NODE_COLOR_RED:  # server assigned new valid color
             print('Server responded: ', server_response, '. SETTING NEW COLOR OF THE NODE!', flush=True)
             node_current_color = server_response
+        else:
+            print('SERVER IS DOWN! SEARCHING FOR NEW MASTER...', flush=True)
         info_time = time.time() - start_time
         if info_time < MASTER_CONTACT_SEC:  # report color every 15 seconds
             print('Zzz... Node is sleeping 15sec before contacting master again!', flush=True)
