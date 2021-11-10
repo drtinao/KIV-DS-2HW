@@ -2,6 +2,7 @@
 import copy
 import math
 import time
+import os
 
 import supportTools as st
 import netTools as net  # tools for network connection
@@ -14,6 +15,7 @@ MASTER_RECONNECT_SEC = 10  # total secs within which new master should be reache
 MASTER_WAIT_BETWEEN_CON_SEC = 3  # secs between tries to connect to master
 SLAVE_DISCONNECTED_SEC = 35  # time after which slave is considered as disconnected by master node [secs]
 SLAVE_DISCONNECTED_SEC_CHECK_SEC = 3  # periodically check for disconnected nodes every x sec
+FILE_TO_TOUCH_SUCCESS = 'successful_operation_perf'  # file which will be touched when some successful operation is performed
 
 NODE_COLOR_GREEN = 'GREEN'  # color of node, assigned to NetworkNode.assigned_color
 NODE_COLOR_RED = 'RED__'  # color of node, assigned to NetworkNode.assigned_color
@@ -203,6 +205,8 @@ def master_node_accept_con(conn, addr, node_color_dict, dict_ip_hostname, dict_h
 
         info_to_print = 'Node hostname: ' + node_hostname + ' with IP: ' + addr[0] + ' is reporting color: '
         if rec_mes_color:  # message is valid
+            open(FILE_TO_TOUCH_SUCCESS, 'a').close()
+            os.utime(FILE_TO_TOUCH_SUCCESS, None)
             if rec_mes_color == NODE_COLOR_GREEN:  # slave is green, color is assigned
                 master_update_hostname_contact(dict_hostname_contact, node_hostname)
                 info_to_print += 'GREEN. '
@@ -284,9 +288,13 @@ def slave_send_color_mes(slave_socket, retrieved_network_nodes):
         server_response = slave_socket.recv(len(NODE_COLOR_GREEN)).decode(FORMAT)
         if server_response == node_current_color:  # color returned same color as already assigned, nothing to change
             print('Server responded: ', server_response, '. OK, color stays the same.', flush=True)
+            open(FILE_TO_TOUCH_SUCCESS, 'a').close()
+            os.utime(FILE_TO_TOUCH_SUCCESS, None)
         elif server_response == NODE_COLOR_GREEN or server_response == NODE_COLOR_RED:  # server assigned new valid color
             print('Server responded: ', server_response, '. SETTING NEW COLOR OF THE NODE!', flush=True)
             node_current_color = server_response
+            open(FILE_TO_TOUCH_SUCCESS, 'a').close()
+            os.utime(FILE_TO_TOUCH_SUCCESS, None)
         else:  # master is down, try to connect to node with highest IP which is active
             print('MASTER IS DOWN! SEARCHING FOR NEW MASTER...', flush=True)
             updated_retrieved_network_nodes = net.retrieve_network_nodes(len(retrieved_network_nodes), 600, True)  # scan for active nodes
@@ -297,9 +305,6 @@ def slave_send_color_mes(slave_socket, retrieved_network_nodes):
                 start_master_node(updated_retrieved_network_nodes)
             else:  # node should now act as slave
                 start_slave_node(updated_retrieved_network_nodes)
-
-            #slave_sock = slave_node_connect(updated_retrieved_network_nodes)  # connect to node with highest IP, hostname
-            #slave_send_color_mes(slave_sock, updated_retrieved_network_nodes)
         info_time = time.time() - start_time
         if info_time < MASTER_CONTACT_SEC:  # report color every 15 seconds
             print('Zzz... Node is sleeping 15sec before contacting master again!', flush=True)
