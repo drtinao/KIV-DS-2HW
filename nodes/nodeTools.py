@@ -3,12 +3,14 @@ import copy
 import math
 import time
 
+import supportTools as st
 import netTools as net  # tools for network connection
 import socket  # for working with network con
 import threading  # create thread for each connection
 
 MASTER_CONTACT_SEC = 15  # contact master every x sec
 MASTER_CONNECT_SEC = 100  # total secs within which master should be reached, then timeout
+MASTER_RECONNECT_SEC = 10  # total secs within which new master should be reached, then try to elect another as master
 MASTER_WAIT_BETWEEN_CON_SEC = 3  # secs between tries to connect to master
 SLAVE_DISCONNECTED_SEC = 35  # time after which slave is considered as disconnected by master node [secs]
 SLAVE_DISCONNECTED_SEC_CHECK_SEC = 3  # periodically check for disconnected nodes every x sec
@@ -28,7 +30,7 @@ node_current_color = NODE_COLOR_NONE  # describes current color of the node, eve
 def start_slave_node(retrieved_network_nodes):
     print('***Setting the node as slave (client) - START***', flush=True)
     slave_sock = slave_node_connect(retrieved_network_nodes)  # connect to node with highest IP, hostname
-    slave_send_color_mes(slave_sock)  # send req to master to set color of the node
+    slave_send_color_mes(slave_sock, retrieved_network_nodes)  # send req to master to set color of the node
 
     # nodes are ready, connect to master
     print('***Setting the node as slave (client) - END***', flush=True)
@@ -138,7 +140,6 @@ def master_check_for_disc_nodes(hostname_contact_dict, print_info, node_color_di
         updated_node_color_dict = master_count_colors(updated_retrieved_network_nodes,
                                                       False)  # recalc colors on new set of clients
         return updated_node_color_dict
-
 
 # Returns dictionary, where keys = IPs, values = hostnames of nodes.
 def master_create_ip_hostname_dict(retrieved_network_nodes):
@@ -270,10 +271,11 @@ def slave_node_connect(retrieved_network_nodes):
         remaining_time -= (end_time - start_time)
     print('***Connect to master - END***', flush=True)
 
-
 # Send current node color to server -> server should respond with new color of the node. Used by slave node!
 # slave_socket - socket which will be used for communication with the server
-def slave_send_color_mes(slave_socket):
+# retrieved_network_nodes - list with NetworkNode objects, in which each obj represents one node in network.
+# master_node_hostname - hostname of master node to which slave is connected
+def slave_send_color_mes(slave_socket, retrieved_network_nodes):
     global node_current_color
     while True:
         start_time = time.time()
@@ -285,8 +287,19 @@ def slave_send_color_mes(slave_socket):
         elif server_response == NODE_COLOR_GREEN or server_response == NODE_COLOR_RED:  # server assigned new valid color
             print('Server responded: ', server_response, '. SETTING NEW COLOR OF THE NODE!', flush=True)
             node_current_color = server_response
-        else:
-            print('SERVER IS DOWN! SEARCHING FOR NEW MASTER...', flush=True)
+        else:  # master is down, try to connect to node with highest IP which is active
+            print('MASTER IS DOWN! SEARCHING FOR NEW MASTER...', flush=True)
+            updated_retrieved_network_nodes = net.retrieve_network_nodes(len(retrieved_network_nodes), 600, True)  # scan for active nodes
+            print('Found ', len(updated_retrieved_network_nodes), ' active node(s) in network, reconnecting...', flush=True)
+            # node with highest IP will act as master, others as slaves
+            new_node_role = st.determine_node_lost_master_role(updated_retrieved_network_nodes)
+            if new_node_role == st.NODE_ROLE_MASTER:  # node should now act as master
+                start_master_node(updated_retrieved_network_nodes)
+            else:  # node should now act as slave
+                start_slave_node(updated_retrieved_network_nodes)
+
+            #slave_sock = slave_node_connect(updated_retrieved_network_nodes)  # connect to node with highest IP, hostname
+            #slave_send_color_mes(slave_sock, updated_retrieved_network_nodes)
         info_time = time.time() - start_time
         if info_time < MASTER_CONTACT_SEC:  # report color every 15 seconds
             print('Zzz... Node is sleeping 15sec before contacting master again!', flush=True)

@@ -59,8 +59,9 @@ def start_node_ping(timeout, node_num):
 # Retrieves information about other nodes which are present in the network (hostname, IP).
 # expect_node_count - expected count of nodes
 # timeout: seconds within which all nodes should be up. If time runs out, node will be terminated.
+# skip_dead: when True, algo does not wait for all nodes to come up - used on new master selection
 # On start of algo every node should be up... During time some may disconnect, algo is ok with that.
-def retrieve_network_nodes(expect_node_count, timeout):
+def retrieve_network_nodes(expect_node_count, timeout, skip_dead):
     print('***Scanning network for other nodes - START***', flush=True)
     remaining_time = timeout  # remaining time of execution before node termination
 
@@ -82,7 +83,12 @@ def retrieve_network_nodes(expect_node_count, timeout):
                 node_ip = socket.gethostbyname(node_hostname)
 
         except:
-            print('Discovered ', len(network_nodes), ' other nodes in network.', flush=True)
+            if skip_dead:  # expected node count not entered, used for new master selection
+                if expect_node_count == node_counter:
+                    return network_nodes
+                else:
+                    node_counter += 1  # skip to next node
+                    continue
             if len(network_nodes) == int(expect_node_count):  # all expected nodes discovered
                 print('Discovered nodes: ', len(network_nodes), ', expected: ', expect_node_count, ' - OK!', flush=True)
                 return network_nodes

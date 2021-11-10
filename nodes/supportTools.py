@@ -35,7 +35,7 @@ def print_info_node():
 def determine_node_start_role(total_node_num):
     print('***Determining role of node (wait for all nodes to come up) - START***', flush=True)
     retrieved_network_nodes = net.retrieve_network_nodes(total_node_num,
-                                                         DISCOVERY_TIMEOUT_SEC)  # scan network for other nodes
+                                                         DISCOVERY_TIMEOUT_SEC, False)  # scan network for other nodes
     if not retrieved_network_nodes:  # no nodes found till time ran out
         print('Not all nodes are up within time, terminating master node...', flush=True)
         return
@@ -57,3 +57,23 @@ def determine_node_start_role(total_node_num):
     else:  # machine is gonna be a slave
         print('Node is acting as slave!', flush=True)
         return [NODE_ROLE_SLAVE, retrieved_network_nodes]
+
+# Function determines role of node after connection to master is lost. Node with highest IP starts acting as master, others became slaves.
+# updated_retrieved_network_nodes - list with NetworkNode objects, in which each obj represents one node in network.
+def determine_node_lost_master_role(updated_retrieved_network_nodes):
+    print('***Determining new role of node - START***', flush=True)
+    highest_ip = None  # highest IP encountered in net list
+    node_w_highest_ip = None  # hostname of node with highest IP
+    for netNode in updated_retrieved_network_nodes:
+        traversed_node_ip = ipaddress.IPv4Address(netNode.node_ip)
+        if highest_ip is None or traversed_node_ip > highest_ip:  # if no IP assigned or traversed IP higher
+            highest_ip = traversed_node_ip
+            node_w_highest_ip = netNode.node_hostname  # get hostname of node with highest IP
+    print('***Determining new role of node - END***', flush=True)
+
+    if net.get_node_hostname() == node_w_highest_ip:  # machine with highest IP will become master, others are slaves
+        print('Node is now acting as master!', flush=True)
+        return NODE_ROLE_MASTER
+    else:  # machine is gonna be a slave
+        print('Node is now acting as slave!', flush=True)
+        return NODE_ROLE_SLAVE
