@@ -1,11 +1,11 @@
 # KIV-DS-2HW
-1) NOVĚ implementované algoritmy v programu (oprotí předchozí SP)
+1) NOVĚ implementované algoritmy v programu (oproti předchozí SP)
 
 Předmětem následujících podkapitol je popis algoritmů, jež byly implementovány v rámci druhé SP.
 
 1.a) Princip fce „failure detector“ - ze strany leadera
 
-Leader považuje za odpojedného klienta takový uzel, jež nereportoval svou barvu po čas delší než 35 sekund. Kontrola stavu uzlů probíhá každé 3 sekundy. Chování je možné změnit - viz sekce s konstantami.
+Leader považuje za odpojeného klienta takový uzel, jež nereportoval svou barvu po čas delší než 35 sekund. Kontrola stavu uzlů probíhá každé 3 sekundy. Chování je možné změnit - viz sekce s konstantami.
 
 Po zjištění výpadku uzlu začne leader periodicky vypisovat informaci o tom, jak dlouho je uzel odpojen - formát: "Node X is disconnected for N seconds!". Následně je proveden přepočet barev přiřazených jednotlivým uzlům tak, aby byl zachován kýžený poměr barev v síti. Pro kontrolu stavu uzlů byla vytvořena funkce „master_check_for_disc_nodes“, jež je v kódu komentována.
 
@@ -13,7 +13,7 @@ K "přebarvení" uzlu dojde ihned poté, co je detekován výpadek jiného uzlu 
 
 1.b) Princip fce „failure detector“ - ze strany followera
 
-Follower považuje leadera za invalidního, pokud se mu po odeslání jeho aktuální barvy od leadera vrátí zpráva, jež neodpovídá očekávanému formátu. Tedy leader nevrátí kód "GREEN" ani "RED__". V takovém případě je zahájen váběr nového leadera, který je vybrán stejným principem, který se využívá i při prvotní volbě vedoucího uzlu.
+Follower považuje leadera za invalidního, pokud se mu po odeslání jeho aktuální barvy od leadera vrátí zpráva, jež neodpovídá očekávanému formátu. Tedy leader nevrátí kód "GREEN" ani "RED__". V takovém případě je zahájen výběr nového leadera, který je vybrán stejným principem, který se využívá i při prvotní volbě vedoucího uzlu.
 
 Tedy je proskenována síť, najde se uzel s nejvyšší IP a ten je považován za vedoucí uzel. Pokud uzel, jež inicioval prohledávání sítě má nejvyšší IP v síti, pak se stane leaderem a čeká na připojení ostatních uzlů. V opačném případě se snaží o připojení k uzlu s nejvyšší IP adresou v síti.
 
@@ -21,9 +21,9 @@ Tedy je proskenována síť, najde se uzel s nejvyšší IP a ten je považován
 
 Follower i leader obsahují ve svém FS soubor, který je označen jako "successful_operation_perf". Pokud je provedena operace, která charakterizuje správnou funkci uzlu, dojde k "touch" daného souboru - což je v podstatě změna času poslední modifikace souboru.
 
-Za "healthy" je pak považován takový uzel, jež provedl validní operaci v posledních 20-ti sekundách - jinými slovy, v posledních 20 sekundách došlo k touch uvedeného souboru. Pokud během 20-ti sekund není provedena validní operace, nedojde k touch souboru a kontejner je označen jako unhealthy - nekomunikuje. Kontrola je prováděna každých 5 sekund, chování je samozřejmě možno změnit v Dockerfile.
+Za "healthy" je pak považován takový uzel, jež provedl validní operaci v posledních 20-ti sekundách - jinými slovy, v posledních 20 sekundách došlo k touch uvedeného souboru. Pokud během 20-ti sekund není provedena validní operace, nedojde k touch souboru a tím pádem je kontejner označen jako unhealthy - nekomunikuje. Kontrola je prováděna každých 5 sekund, chování je samozřejmě možno změnit v Dockerfile.
 
-Z pohledu leadera je za validní operaci považováno každé přijetí zprávy (akt. barvy) od followera. Ze strany followera se jedná o přijetí validní zprávy (barvy) od leadera.
+Z pohledu leadera je za validní operaci považováno každé přijetí zprávy / reportování akt. barvy od followera. Ze strany followera se jedná o přijetí validní zprávy (přiřazené barvy) od leadera.
 
 Funkčnost lze vyzkoušet simulováním chyby - napojím se do kontejneru přes ssh a zastavím vykonávání skriptu -> kontejner přejde do stavu "unhealthy".
 
@@ -41,7 +41,7 @@ Funkčnost lze vyzkoušet simulováním chyby - napojím se do kontejneru přes 
 
 Followeři periodicky zasílají leaderovi svou barvu kódovým označením, jež má fixní délku 5B - jedná se o "GREEN", "RED__" nebo "NONE_". Leader odpovídá stejným formátem zpráv. Jelikož za každou zprávou následuje odpověď a délka zpráv je stejná, lze náročnost vyjádřit vztahem 2 \* n, kde n je délka zprávy. V tomto případě 2 \* 5 = 10 B.
 
-Množství přenesených dat napříč uzly lze snadno docílit snížením frekvence, jakou followeři kontaktují leadera - viz popis konstanty „MASTER_CONTACT_SEC“. Snížení přenosu dat by se dalo docílit i změnou protokolu, kdy by jednotlivé barvy měly kratší kód - např. "R", "G", "N".
+Množství přenesených dat napříč uzly lze snadno redukovat snížením frekvence, jakou followeři kontaktují leadera - viz popis konstanty „MASTER_CONTACT_SEC“. Snížení přenosu dat by se dalo docílit i změnou protokolu, kdy by jednotlivé barvy měly kratší kód - např. "R", "G", "N".
 
 # Níže pokračuje dokumentace dodaná k předchozí úloze.
 1) Algoritmy použité v programu
