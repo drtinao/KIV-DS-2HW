@@ -84,7 +84,7 @@ def retrieve_network_nodes(expect_node_count, timeout, skip_dead):
 
         except:
             if skip_dead:  # expected node count not entered, used for new master selection
-                if expect_node_count == node_counter:
+                if node_counter >= expect_node_count:
                     return network_nodes
                 else:
                     node_counter += 1  # skip to next node
