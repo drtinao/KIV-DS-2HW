@@ -39,7 +39,9 @@ Funkčnost lze vyzkoušet simulováním chyby - napojím se do kontejneru přes 
 
 3) Komunikační náročnost implementovaného distribuovaného algoritmu
 
+Followeři periodicky zasílají leaderovi svou barvu kódovým označením, jež má fixní délku 5B - jedná se o "GREEN", "RED__" nebo "NONE_". Leader odpovídá stejným formátem zpráv. Jelikož za každou zprávou následuje odpověď a délka zpráv je stejná, lze náročnost vyjádřit vztahem 2 \* n, kde n je délka zprávy. V tomto případě 2 \* 5 = 10 B.
 
+Množství přenesených dat napříč uzly lze snadno docílit snížením frekvence, jakou followeři kontaktují leadera - viz popis konstanty „MASTER_CONTACT_SEC“. Snížení přenosu dat by se dalo docílit i změnou protokolu, kdy by jednotlivé barvy měly kratší kód - např. "R", "G", "N".
 
 # Níže pokračuje dokumentace dodaná k předchozí úloze.
 1) Algoritmy použité v programu
